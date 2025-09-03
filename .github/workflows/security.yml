@@ -1,0 +1,62 @@
+name: ScoutSuite Scan
+
+on:
+    workflow_dispatch: {} # Lets it run manually from the Actions tab
+    push:
+        branches: [ main ] # Runs automatically whenever you push to the main branch
+
+jobs: # Workflow can have one or more jobs. This job is called scan
+    scan:
+        runs-on: ubuntu-latest # This job runs inside a Github hosted Linux VM (ubuntu)
+
+        permissions: # What the workflow can access in Github repo. read is the default
+            contents: read
+
+        env: # Pulls github secrets 
+            AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+
+        steps: # Downloads your repo code into the runner so docker can see <docker/scoutsuite>
+            - name: Checkout repo
+              uses: actions/checkout@v4
+
+            - name: Set up output directory # creates a local folder scout-out inside the runner to store Scout Suites report
+              run: |
+                mkdir -p scout-out
+
+            - name: Build ScoutSuite image # Builds your Dockerfile in docker/scoutsuite/. Tags the image as scoutsuite:ci
+              run: | 
+                docker build -t scoutsuite:ci docker/scoutsuite
+
+            - name: Run ScoutSuite scan
+              run: | 
+                docker run --rm \           
+                    -e AWS_ACCESS_KEY_ID \
+                    -e AWS_SECRET_ACCESS_KEY \
+                    -e AWS_DEFAULT_REGION \
+                    -v "$PWD/scout-out:/output" \
+                    scoutsuite:ci
+            # -- rm deletes container after it finishes
+            # -e passes AWS creds into container
+            # -v "$PWD/scout-out:/output" mounts the local scout-out/ folder as /output inside container
+            # The report will end up in scout-out/scoutsuite-<timestamp>/
+
+            - name: List report files (debug)
+              run: |
+                echo "Contents of scout-out:"
+                ls -la scout-out || true
+                find scout-out -maxdepth 2 -type f -name "*.html" -print || true
+            # prints out contents in scout-out/ folder. Good for debuging if report isnt being generated.
+
+            - name: Upload report artifact
+              uses: actions/upload-artifact@v4
+              with:
+                name: scoutsuite-report 
+                path: scout-out/**
+                if-no-files-found: error
+                retention-days: 14
+            # Takes everything in scout-out/ (the HTML + asset folders)
+            # Uploads it as an artifact named scoutsuite-report
+            # Artifacts are downloadable from the Actions run page
+            # Expires after 14 days

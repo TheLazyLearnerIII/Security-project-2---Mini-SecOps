@@ -1,7 +1,12 @@
 name: ScoutSuite Scan
 
 on:
-    workflow_dispatch: {} # Lets it run manually from the Actions tab
+    workflow_dispatch: 
+      inputs:
+        label:
+          description: "Optional run label"
+          required: false
+          default: ""
     push:
         branches: [ main ] # Runs automatically whenever you push to the main branch
 
@@ -16,6 +21,7 @@ jobs: # Workflow can have one or more jobs. This job is called scan
             AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
             AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
             AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+            SCAN_LABEL: ${{ github.event.inputs.label || 'manual' }}
 
         steps: # Downloads your repo code into the runner so docker can see <docker/scoutsuite>
             - name: Checkout repo
@@ -43,6 +49,7 @@ jobs: # Workflow can have one or more jobs. This job is called scan
             # The report will end up in scout-out/scoutsuite-<timestamp>/
 
             - name: List report files (debug)
+              if: always()
               run: |
                 echo "Contents of scout-out:"
                 ls -la scout-out || true
@@ -52,7 +59,7 @@ jobs: # Workflow can have one or more jobs. This job is called scan
             - name: Upload report artifact
               uses: actions/upload-artifact@v4
               with:
-                name: scoutsuite-report 
+                name: scoutsuite-report-${{ env.SCAN_LABEL }}-${{ github.run_number }} 
                 path: scout-out/**
                 if-no-files-found: error
                 retention-days: 14
@@ -60,3 +67,6 @@ jobs: # Workflow can have one or more jobs. This job is called scan
             # Uploads it as an artifact named scoutsuite-report
             # Artifacts are downloadable from the Actions run page
             # Expires after 14 days
+
+
+            

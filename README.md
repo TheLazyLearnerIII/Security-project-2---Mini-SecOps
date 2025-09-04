@@ -29,9 +29,14 @@ This shows the **overall security posture** of the AWS account, with findings ca
 This example highlights a **Danger-level issue** where CloudTrail was not configured securely, with remediation advice.
 ![CloudTrail Danger Finding](docs/cloudtrail-danger-dashboard.png)
 
-## Findings
+## Key Findings & Remediation
 
-ScoutSuite identified issues such as:
-- S3 bucket versioning disabled
-- CloudTrail not multi-region
-- Root account access used
+ScoutSuite identified a **Danger-level issue**:  
+- **CloudTrail misconfiguration** (not fully secured/logging as expected).
+
+**Remediation (via Terraform):**  
+- Fixed S3 bucket policy for CloudTrail logs.  
+- Ensured versioning + encryption enabled on log bucket.  
+- Verified CloudTrail is writing logs to the bucket.  
+
+* Re-scanned with ScoutSuite to confirm improvements.
